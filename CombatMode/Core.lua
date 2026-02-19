@@ -912,8 +912,8 @@ local function ResolveActionButtonFrame(bindingValue)
   return BindingToClickFrame[bindingValue]
 end
 
-local CLICKCAST_PRE_LINE_ANY = "/target [@focus,exists,nodead] focus; [nomounted,@mouseover,exists] mouseover" -- used if reticleTargetingEnemyOnly is OFF- Targets any mouseover unit if it exists.
-local CLICKCAST_PRE_LINE_ENEMY = "/target [@focus,exists,nodead] focus; [nomounted,@mouseover,harm,nodead][nomounted,@anyenemy,harm,nodead]" --  used if reticleTargetingEnemyOnly is ON - This preline will first try to cast the spell at the unit under the crosshair (mouseover) that is hostile (harm) and alive (nodead). If no unit matches that condition, it tries to find a locked target through the "target" portion of the anyenemy UnitId. If no target exists, it falls back to the "softenemy" UnitId, which is Action Targeting.
+local CLICKCAST_PRE_LINE_ANY = "" -- used if reticleTargetingEnemyOnly is OFF- Targets any mouseover unit if it exists.
+local CLICKCAST_PRE_LINE_ENEMY = "" --  used if reticleTargetingEnemyOnly is ON - This preline will first try to cast the spell at the unit under the crosshair (mouseover) that is hostile (harm) and alive (nodead). If no unit matches that condition, it tries to find a locked target through the "target" portion of the anyenemy UnitId. If no target exists, it falls back to the "softenemy" UnitId, which is Action Targeting.
 
 -- Returns true if spellId is in the user's "Cast @Cursor Spells" list (comma-separated names in options).
 local function IsCastAtCursorSpell(spellId)
