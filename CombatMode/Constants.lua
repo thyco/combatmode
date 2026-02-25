@@ -27,7 +27,7 @@ CM.Constants.ReticleTargetingCVarValues = {
   ["SoftTargetEnemyRange"] = 60,
   -- SoftTarget Interact
   ["SoftTargetInteract"] = 3,
-  ["SoftTargetInteractArc"] = 1, -- Setting it to 1 since we don't need too much precision when interacting with NPCs and having to aim precisely at them when this is set to 0 gets annoying.
+  ["SoftTargetInteractArc"] = 0, -- Setting it to 1 since we don't need too much precision when interacting with NPCs and having to aim precisely at them when this is set to 0 gets annoying.
   ["SoftTargetInteractRange"] = 15,
   -- SoftTarget Friend
   ["SoftTargetFriend"] = 0,
@@ -408,6 +408,7 @@ CM.Constants.FramesToCheck = {
   "HouseEditorFrame",
   "HousingDashboardFrame",
   "CatalogShopFrame",
+  "HousingCornerstonePurchaseFrame",
   -- NOTE: CombatModeHealingRadialFrame removed from watchlist.
   -- Healing radial visibility is handled by IsHealingRadialActive() in ShouldFreeLookBeOff().
   -- Using the watchlist would conflict with alpha-based visibility used for combat compatibility.
