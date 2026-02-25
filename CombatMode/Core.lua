@@ -1017,7 +1017,7 @@ local function BuildClickCastMacroText(bindingValue)
     -- Use conditional macro to check for override bar at runtime
     -- (works when exiting vehicle in combat; we can't refresh bindings then)
     -- For bonus/shapeshift bars, bindings are refreshed via events when out of combat
-    castLine = "/click [overridebar] OverrideActionBarButton" .. buttonNum .. "; ActionButton" .. buttonNum
+    castLine = "/click [overridebar][possessbar][shapeshift][vehicleui] OverrideActionBarButton" .. buttonNum .. "; ActionButton" .. buttonNum
   else
     castLine = "/click " .. clickFrame
   end

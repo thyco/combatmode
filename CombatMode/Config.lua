@@ -587,20 +587,21 @@ local FreeLookOptions = {
     spacing1 = Spacing(0.1, 4.1),
     interact = {
       type = "keybinding",
-      name = "|cffffd700Interact With Target|r",
-      desc = "Press to interact with crosshair target when in range. \n\n|cff909090This particular targeting arc is intentionally wider to facilitate interaction with NPCs surrounded by players.|r",
+      name = "|cffffd700Interact - |cff00FFFFReticle Target|r|r",
+      desc = "Press to interact with the unit or world object under the crosshair when in range.|r",
       width = 1.15,
       order = 5,
       set = function(_, key)
-        local oldKey = (GetBindingKey("INTERACTTARGET"))
+        local oldKey = (GetBindingKey("INTERACTMOUSEOVER"))
         if oldKey then
           SetBinding(oldKey)
         end
-        SetBinding(key, "INTERACTTARGET")
+        SetBinding(key, "INTERACTMOUSEOVER")
+        SetBinding("ALT-" .. key, "INTERACTTARGET")
         SaveBindings(GetCurrentBindingSet())
       end,
       get = function()
-        return (GetBindingKey("INTERACTTARGET"))
+        return (GetBindingKey("INTERACTMOUSEOVER"))
       end
     },
     spacing = Spacing("full", 5.1),
