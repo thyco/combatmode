@@ -18,7 +18,7 @@ CM.Constants.ReticleTargetingCVarValues = {
   -- SoftTarget General
   ["interactKeyWarningTutorial"] = 1, -- Hides the interact key tutorial if using the INTERACTMOUSEOVER binding
   ["deselectOnClick"] = 1, -- Disables Sticky Targeting. We never want this w/ soft targeting, as it interferes w/ SoftTargetForce
-  ["SoftTargetForce"] = 1, -- Auto-set target to match soft target. 1 = for enemies, 2 = for friends
+  ["SoftTargetForce"] = 0, -- Auto-set target to match soft target. 1 = for enemies, 2 = for friends
   ["SoftTargetMatchLocked"] = 1, -- Match appropriate soft target to locked target. 1 = hard locked only, 2 = targets you attack
   ["SoftTargetWithLocked"] = 2, -- Allows soft target selection while player has a locked target. 2 = always do soft targeting
   -- SoftTarget Enemy
@@ -147,6 +147,8 @@ CM.Constants.BLIZZARD_EVENTS = {
     "GROUP_ROSTER_UPDATE",       -- Party composition changed
     "ACTIONBAR_SLOT_CHANGED",    -- Action bar spell/item changed
     "UPDATE_VEHICLE_ACTIONBAR",  -- Vehicle action bar updated
+    "UPDATE_POSSESS_BAR",
+    "PET_BAR_UPDATE",
     "UPDATE_BONUS_ACTIONBAR",    -- Bonus bar changed (druid form, rogue stealth, etc.)
     "UPDATE_OVERRIDE_ACTIONBAR", -- Override bar appeared/changed (vehicle, quest UI)
     "UPDATE_SHAPESHIFT_FORM",    -- Shapeshift form changed
