@@ -29,13 +29,13 @@ local DefaultBindings = {
   button1 = {
     enabled = true,
     key = "BUTTON1",
-    value = "ACTIONBUTTON1",
+    value = "MULTIACTIONBAR4BUTTON9", -- Action Bar 5, Button 9
     macroName = "",
   },
   button2 = {
     enabled = true,
     key = "BUTTON2",
-    value = "ACTIONBUTTON2",
+    value = "TARGETMOUSEOVER",
     macroName = "",
   },
   shiftbutton1 = {
@@ -81,7 +81,7 @@ CM.Constants.DatabaseDefaults = {
   global = {
     -- general
     pulseCursor = true,
-    hideTooltip = true,
+    hideTooltip = false,
     sheathWeaponsWithMouselook = false,
     interactUnit = "target",
     showTargetLockMarker = true,
@@ -93,7 +93,7 @@ CM.Constants.DatabaseDefaults = {
     crosshairScale = 1.0,
     crosshairY = 100,
     -- interaction HUD
-    interactionHUD = true,
+    interactionHUD = false,
     interactionHUDSide = "LEFT",
     interactionHUDScale = 1.0,
     -- combat assist
@@ -101,7 +101,7 @@ CM.Constants.DatabaseDefaults = {
     assistedHighlightSide = "RIGHT",
     assistedHighlightScale = 1.0,
     -- reticle targeting
-    reticleTargetingCVarOverrides = {},
+    reticleTargetingCVarOverrides = { SoftTargetEnemyArc = 2 },
     priorCVarSnapshot = nil,
     targetingMacroPrelineAnyOverride = nil,
     targetingMacroPrelineEnemyOverride = nil,
@@ -135,9 +135,9 @@ return false
     },
     customCondition = "",
     -- mouse look camera
-    mouseLookSpeed = 100,
-    dynamicPitch = true,
-    vignette = true,
+    mouseLookSpeed = 50,
+    dynamicPitch = false,
+    vignette = false,
     -- Ease shoulder with Mouse Look chrome when on (default off = keep configured offset).
     shoulderFollowsMouseLook = false,
     -- When true, never force Motion Sickness ActionCam gates off (Accessibility honored).
@@ -157,16 +157,16 @@ return false
   },
   char = {
     -- mouse look camera
-    shoulderOffset = 1.2,
+    shoulderOffset = 0,
     -- reticle targeting
     reticleTargeting = true,
     reticleTargetingEnemyOnly = true,
     autoTargetLockOnAttack = false,
-    macroInjectionClickCastOnly = false,
+    macroInjectionClickCastOnly = true,
     excludeFromTargetingSpells = "871, 45438, 642, 198589",
     castAtCursorSpells = "6544, 204596, 189110, 1234796, 190356, 207684",
     -- click casting
-    useGlobalBindings = false,
+    useGlobalBindings = true,
     bindings = DefaultBindings,
   },
 }
