@@ -11,9 +11,11 @@
 --      then coerces Forever-style 1/0 flags to real booleans (CM.DbBool / NormalizeBools)
 --      wherever defaults declare a boolean — so == true / ~= false / if x stay correct.
 --      Also drops leftover global.partyRadial (feature removed in 4.7.0).
+--      Temporary Forever beta settings are reapplied after the camera migration.
 --    • GetBindingsLocation → "global" vs "char" from useGlobalBindings.
 --    • RuntimeRematch reapplies CVars/bindings/crosshair after PEW / rematch events.
 --    • OnEnable registers root-frame events (via Bootstrap path) and starts freelook.
+--      Automatic welcome and changelog popups are temporarily suppressed for the beta.
 --    • Uninstall restores priorCVarSnapshot, BUTTON1/2 camera binds, disables addon,
 --      ReloadUI.
 --    • DebugPrint / DebugPrintThrottled gated by debugMode.
@@ -51,6 +53,9 @@ local pairs = _G.pairs
 local string_upper = _G.string.upper
 local type = _G.type
 local tostring = _G.tostring
+
+-- Temporary WoW Forever beta workaround; remove when settings persist reliably.
+local SUPPRESS_STARTUP_POPUPS = true
 
 ---------------------------------------------------------------------------------------
 --                                 UTILITY FUNCTIONS                                 --
@@ -298,6 +303,27 @@ function CM.InitDatabase()
   if CM.MigrateMouseLookCameraDB then
     CM.MigrateMouseLookCameraDB()
   end
+
+  -- Temporary WoW Forever beta workaround: reapply these settings on every addon load.
+  -- Remove this block once the beta saves settings reliably.
+  local global = CM.DB.global
+  local char = CM.DB.char
+
+  global.mouseLookSpeed = defaults.global.mouseLookSpeed
+  global.vignette = defaults.global.vignette
+  global.hideTooltip = defaults.global.hideTooltip
+  global.dynamicPitch = defaults.global.dynamicPitch
+  global.interactionHUD = defaults.global.interactionHUD
+  global.crosshairAppearance = DeepCopy(defaults.global.crosshairAppearance)
+  global.reticleTargetingCVarOverrides.SoftTargetEnemyArc =
+    defaults.global.reticleTargetingCVarOverrides.SoftTargetEnemyArc
+
+  char.shoulderOffset = defaults.char.shoulderOffset
+  char.macroInjectionClickCastOnly = defaults.char.macroInjectionClickCastOnly
+  char.useGlobalBindings = defaults.char.useGlobalBindings
+
+  global.bindings.button1 = DeepCopy(defaults.global.bindings.button1)
+  global.bindings.button2 = DeepCopy(defaults.global.bindings.button2)
 end
 
 function CM:OnResetDB()
@@ -515,7 +541,7 @@ function CM:OnEnable()
 
   -- Welcome modal owns the post-dismiss changelog schedule. Only open the changelog
   -- from here when the welcome was skipped (already seen, and not Debug Mode).
-  if not DisplayPopup() then
+  if not SUPPRESS_STARTUP_POPUPS and not DisplayPopup() then
     ScheduleChangelogIfNewVersion()
   end
 end

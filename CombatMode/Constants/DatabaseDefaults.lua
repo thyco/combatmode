@@ -35,7 +35,7 @@ local DefaultBindings = {
   button2 = {
     enabled = true,
     key = "BUTTON2",
-    value = "TARGETMOUSEOVER",
+    value = "TARGETSCANENEMY",
     macroName = "",
   },
   shiftbutton1 = {
