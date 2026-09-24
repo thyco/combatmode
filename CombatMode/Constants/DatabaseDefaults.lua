@@ -96,10 +96,12 @@ CM.Constants.DatabaseDefaults = {
     interactionHUD = false,
     interactionHUDSide = "LEFT",
     interactionHUDScale = 1.0,
+    interactionHUDPadding = 24,
     -- combat assist
     assistedHighlightEnabled = true,
     assistedHighlightSide = "RIGHT",
     assistedHighlightScale = 1.0,
+    assistedHighlightPadding = 24,
     -- reticle targeting
     reticleTargetingCVarOverrides = { SoftTargetEnemyArc = 2 },
     priorCVarSnapshot = nil,
@@ -145,8 +147,10 @@ return false
     -- Ally Cycle HUD (enable = Up/Down keybinds bound; no master toggle)
     allyCycle = {
       showHud = true,
-      hudSide = "TOP",
+      hudSide = "BOTTOM",
       scale = 1.0,
+      padding = 24,
+      skipPlayer = true,
       -- false + Set=false → follow healer spec until the user toggles.
       restoreAllyAfterHarm = false,
       restoreAllyAfterHarmSet = false,

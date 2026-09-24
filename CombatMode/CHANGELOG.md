@@ -5,13 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/2.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.7.2] - 2026-09-23
+
+### Fixed
+
+- **WoW Forever**: Ally Cycle no longer errors on login, reload, or throughout combat. Forever Beta is missing Blizzard's secure-snippet compiler (`loadstring_untainted`); cycling is disabled there until that ships. Mainline is unchanged.
+
+## [4.7.1] - 2026-09-23
+
+### Fixed
+
+- CurseForge and Wago now list **WoW Forever** as a supported client. 4.7.0 was uploaded as Mainline-only; releases now tag both 12.1.0 and 1.60.1.
+
 ## [4.7.0] - 2026-09-22
 
 ### Added
 
 - **Ally Cycle**: bind Up/Down to hard-target the next or previous party/raid member (group/index order; skips you) without unlocking Mouse Look. Huge thank you to user `Ataxium` for the concept/suggestion.
 - **Simultaneous attack + assist**: while an ally is selected, helpful Click Casting spells go to that ally; harmful spells still prefer your hostile Crosshair / Target Lock target.
-- **Ally HUD** (dedicated options tab): companion beside the crosshair for the selected ally — class-colored name, role icon, health bar, raid marker, and cycle index (`n/total`, excluding you). Configurable position (default above the reticle) and scale.
+- **Ally HUD** (dedicated options tab): companion beside the crosshair for the selected ally — class-colored name, role icon, health bar, raid marker, and cycle index (`n/total`, excluding you). Configurable position, scale, and **Distance**.
+- **Distance** sliders on Interaction HUD, Combat Assist, and Ally HUD: gap past the reticle edge (default 24, same as before).
+- Right-clicking an **options slider** now resets it to its default value.
 
 ### Fixed
 
@@ -486,7 +500,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rapidly toggling OPie rings could leave the cursor stuck and visible while Mouse Look was active.
 - Reloading could leave the cursor visible while still in the Mouse Look state after the loading screen.
 
-[Unreleased]: https://github.com/djsmithdev/combatmode/compare/4.7.0...HEAD
+[Unreleased]: https://github.com/djsmithdev/combatmode/compare/4.7.2...HEAD
+[4.7.2]: https://github.com/djsmithdev/combatmode/compare/4.7.1...4.7.2
+[4.7.1]: https://github.com/djsmithdev/combatmode/compare/4.7.0...4.7.1
 [4.7.0]: https://github.com/djsmithdev/combatmode/compare/4.6.8...4.7.0
 [4.6.8]: https://github.com/djsmithdev/combatmode/compare/4.6.7...4.6.8
 [4.6.7]: https://github.com/djsmithdev/combatmode/compare/4.6.6...4.6.7

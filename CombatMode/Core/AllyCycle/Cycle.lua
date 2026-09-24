@@ -1,13 +1,21 @@
 ---------------------------------------------------------------------------------------
 --  Core/AllyCycle/Cycle.lua — ALLYCYCLE — secure UP/DOWN party/raid targeting
 ---------------------------------------------------------------------------------------
---  What it does: Secure Up/Down hard-target through group/index order (skips player).
+--  What it does: Secure Up/Down hard-target through group/index order. Skip Self
+--  (default on) omits the player from the roster.
 --  Architecture / how it works:
 --    • SecureActionButton + key-up wrap; ASC/DESC headers; takeNext; restore-if-lost
 --      via PlayerCanAssist (RestrictedEnv has no UnitIsUnit). Frame refs must be
 --      SecureGroupHeaderTemplate.
+--    • skipPlayer attribute set OOC from DB (RestrictedEnv cannot read CM.DB).
 --    • PrepareCycle / ResetAllyCycleCursor OOC only (SetAttribute is lockdown-blocked).
---    • GetAllyCycleIndex for the HUD; NotifyCycle on advance (not restore).
+--    • GetAllyCycleIndex for the HUD (reuses a child scratch table); NotifyCycle on
+--      advance (not restore) plays a quiet UI tick (softer than Target Lock cycle).
+--    • CM.Profile keys: AllyCycle:GetIndex / ApplyBindings / RefreshRoster.
+--    • Forever Beta (interface 16xxx) cannot compile secure snippets; headers stay
+--      hidden and wrap/binds no-op. Detect via GetBuildInfo, not loadstring_untainted
+--      (that global is not addon-visible on Mainline either) or WOW_PROJECT_ID (Forever
+--      reports as Mainline).
 --  Does not: Own HUD chrome or click-cast prelines.
 --  Related: Core/AllyCycle/{HUD,AllyCycle}.lua, Core/ClickCasting/BindingOverrides.lua,
 --  Core/Runtime/BindingQueue.lua, UI/Options/Tabs/TabAllyCycle.lua, Bindings.xml
@@ -19,9 +27,12 @@ local _G = _G
 local ClearOverrideBindings = _G.ClearOverrideBindings
 local CreateFrame = _G.CreateFrame
 local GetBindingKey = _G.GetBindingKey
+local GetBuildInfo = _G.GetBuildInfo
 local GetNormalizedRealmName = _G.GetNormalizedRealmName
 local GetRealmName = _G.GetRealmName
 local InCombatLockdown = _G.InCombatLockdown
+local PlaySound = _G.PlaySound
+local SOUNDKIT = _G.SOUNDKIT
 local SecureHandlerSetFrameRef = _G.SecureHandlerSetFrameRef
 local SecureHandlerWrapScript = _G.SecureHandlerWrapScript
 local SetOverrideBindingClick = _G.SetOverrideBindingClick
@@ -33,11 +44,29 @@ local UnitName = _G.UnitName
 -- Lua stdlib
 local ipairs = _G.ipairs
 local issecretvalue = _G.issecretvalue
+local select = _G.select
 local tostring = _G.tostring
+local wipe = _G.wipe
+
+-- Forever 1.60.x TOC is 16xxx. Classic Era is 115xx; Mainline is 12xxxx.
+-- RestrictedExecution is broken on that client; do not probe loadstring_untainted
+-- (nil in addon _G on Retail too — that disabled Ally Cycle everywhere).
+local interfaceVersion = (GetBuildInfo and select(4, GetBuildInfo())) or 0
+local FOREVER_CLIENT = type(interfaceVersion) == "number"
+  and interfaceVersion >= 16000
+  and interfaceVersion < 20000
+local SECURE_SNIPPETS_OK = not FOREVER_CLIENT
 
 local BIND_UP = "Combat Mode - Ally Cycle Next"
 local BIND_DOWN = "Combat Mode - Ally Cycle Previous"
 local GROUPS = "1,2,3,4,5,6,7,8"
+local INITIAL_CONFIG = [[
+    self:SetWidth(1)
+    self:SetHeight(1)
+    self:EnableMouse(false)
+  ]]
+-- Softer than Target Lock's IG_MAINMENU_OPTION cycle tick.
+local ALLY_CYCLE_SOUND = (SOUNDKIT and SOUNDKIT.IG_MAINMENU_OPTION_CHECKBOX_ON) or 856
 
 local OverrideOwner = CreateFrame("Frame", "CombatModeAllyCycleOverrideOwner", UIParent)
 local CycleButton =
@@ -67,16 +96,13 @@ local function CreateGroupHeader(name, sortDir)
   header:SetAttribute("sortMethod", "INDEX")
   header:SetAttribute("sortDir", sortDir or "ASC")
   header:SetAttribute("template", "SecureUnitButtonTemplate")
-  header:SetAttribute(
-    "initialConfigFunction",
-    [[
-    self:SetWidth(1)
-    self:SetHeight(1)
-    self:EnableMouse(false)
-  ]]
-  )
-  -- SecureGroupHeaderTemplate only populates while shown.
-  header:Show()
+  if SECURE_SNIPPETS_OK then
+    header:SetAttribute("initialConfigFunction", INITIAL_CONFIG)
+    -- SecureGroupHeaderTemplate only populates while shown.
+    header:Show()
+  else
+    header:Hide()
+  end
   return header
 end
 
@@ -92,20 +118,20 @@ SelfHeader:SetAttribute("showParty", true)
 SelfHeader:SetAttribute("showPlayer", true)
 SelfHeader:SetAttribute("showSolo", true)
 SelfHeader:SetAttribute("template", "SecureUnitButtonTemplate")
-SelfHeader:SetAttribute(
-  "initialConfigFunction",
-  [[
-  self:SetWidth(1)
-  self:SetHeight(1)
-  self:EnableMouse(false)
-]]
-)
-SelfHeader:Show()
+if SECURE_SNIPPETS_OK then
+  SelfHeader:SetAttribute("initialConfigFunction", INITIAL_CONFIG)
+  SelfHeader:Show()
+else
+  SelfHeader:Hide()
+end
 
 local GroupAsc = CreateGroupHeader("CombatModeAllyCycleGroupAsc", "ASC")
 local GroupDesc = CreateGroupHeader("CombatModeAllyCycleGroupDesc", "DESC")
 
 local function EnsureSelfHeaderNameList()
+  if not SECURE_SNIPPETS_OK then
+    return
+  end
   if InCombatLockdown and InCombatLockdown() then
     return
   end
@@ -125,6 +151,14 @@ local function EnsureSelfHeaderNameList()
   SelfHeader:Show()
 end
 
+function CM.IsAllyCycleSkipPlayer()
+  local ac = CM.DB and CM.DB.global and CM.DB.global.allyCycle
+  if ac and ac.skipPlayer == false then
+    return false
+  end
+  return true
+end
+
 -- OOC only: SetAttribute on this button is lockdown-blocked.
 function CycleButton:PrepareCycle()
   if InCombatLockdown and InCombatLockdown() then
@@ -133,19 +167,25 @@ function CycleButton:PrepareCycle()
   if not UnitExists("target") then
     return
   end
-  if UnitIsUnit and UnitIsUnit("target", "player") then
+  local skipPlayer = CM.IsAllyCycleSkipPlayer()
+  if skipPlayer and UnitIsUnit and UnitIsUnit("target", "player") then
     return
   end
   local children = { GroupAsc:GetChildren() }
   for _, child in ipairs(children) do
     local unit = child.GetAttribute and child:GetAttribute("unit")
     if unit and UnitExists(unit) and UnitIsUnit and UnitIsUnit(unit, "target") then
-      if unit ~= "player" and not UnitIsUnit(unit, "player") then
+      local isSelf = unit == "player" or UnitIsUnit(unit, "player")
+      if not skipPlayer or not isSelf then
         self:SetAttribute("lastUnit", unit)
       end
       return
     end
   end
+end
+
+function CM.IsAllyCycleSecureAvailable()
+  return SECURE_SNIPPETS_OK
 end
 
 if SecureHandlerSetFrameRef then
@@ -154,7 +194,7 @@ if SecureHandlerSetFrameRef then
   SecureHandlerSetFrameRef(CycleButton, "groupDesc", GroupDesc)
 end
 
-if SecureHandlerWrapScript then
+if SECURE_SNIPPETS_OK and SecureHandlerWrapScript then
   SecureHandlerWrapScript(
     CycleButton,
     "OnClick",
@@ -209,14 +249,14 @@ if SecureHandlerWrapScript then
         chosen = lastUnit
       end
 
+      local skipPlayer = self:GetAttribute("skipPlayer") ~= false
+
       if not chosen and header then
         for slot = 1, 40 do
           local member = header:GetFrameRef("child" .. slot)
           local unit = member and member:GetAttribute("unit")
-          if unit and UnitExists(unit)
-            and unit ~= "player"
-            and (not selfUnit or unit ~= selfUnit)
-          then
+          local isSelf = unit == "player" or (selfUnit and unit == selfUnit)
+          if unit and UnitExists(unit) and not (skipPlayer and isSelf) then
             if not firstUnit then
               firstUnit = unit
             end
@@ -251,12 +291,18 @@ if SecureHandlerWrapScript then
 end
 
 function CycleButton:NotifyCycle(direction)
+  if PlaySound then
+    PlaySound(ALLY_CYCLE_SOUND, "Master", true)
+  end
   if CM.NotifyAllyCycleHUD then
     CM.NotifyAllyCycleHUD(direction)
   end
 end
 
-function CM.RefreshAllyCycleRoster()
+local function RefreshAllyCycleRosterImpl()
+  if not SECURE_SNIPPETS_OK then
+    return
+  end
   EnsureSelfHeaderNameList()
   if SelfHeader and not SelfHeader:IsShown() then
     SelfHeader:Show()
@@ -268,6 +314,10 @@ function CM.RefreshAllyCycleRoster()
     GroupDesc:Show()
   end
   CM.DebugPrint("Ally Cycle roster refreshed")
+end
+
+function CM.RefreshAllyCycleRoster()
+  return CM.Profile("AllyCycle:RefreshRoster", RefreshAllyCycleRosterImpl)
 end
 
 function CM.FlushPendingAllyCycleRoster()
@@ -291,6 +341,29 @@ local function PublicBool(v)
   return nil
 end
 
+local rosterKids = {}
+
+local function PackInto(dest, ...)
+  local n = select("#", ...)
+  for i = 1, n do
+    dest[i] = select(i, ...)
+  end
+  for i = n + 1, #dest do
+    dest[i] = nil
+  end
+end
+
+local function CollectHeaderChildren(header)
+  if not header then
+    if wipe then
+      wipe(rosterKids)
+    end
+    return rosterKids
+  end
+  PackInto(rosterKids, header:GetChildren())
+  return rosterKids
+end
+
 local function IsPlayerUnit(unit)
   if not unit then
     return false
@@ -304,20 +377,21 @@ local function IsPlayerUnit(unit)
   return PublicBool(UnitIsUnit(unit, "player")) == true
 end
 
-function CM.GetAllyCycleIndex(unit)
+local function GetAllyCycleIndexImpl(unit)
   unit = unit or "target"
   local total = 0
   local current = nil
   if not GroupAsc then
     return nil, 0
   end
-  local children = { GroupAsc:GetChildren() }
+  local skipSelf = CM.IsAllyCycleSkipPlayer()
+  local children = CollectHeaderChildren(GroupAsc)
   for _, child in ipairs(children) do
     local slot = child.GetAttribute and child:GetAttribute("unit")
     if slot then
       local exists = UnitExists(slot)
       if IsSecret(exists) or exists then
-        if not IsPlayerUnit(slot) then
+        if not skipSelf or not IsPlayerUnit(slot) then
           total = total + 1
           if unit and UnitIsUnit and PublicBool(UnitIsUnit(slot, unit)) == true then
             current = total
@@ -327,6 +401,10 @@ function CM.GetAllyCycleIndex(unit)
     end
   end
   return current, total
+end
+
+function CM.GetAllyCycleIndex(unit)
+  return CM.Profile("AllyCycle:GetIndex", GetAllyCycleIndexImpl, unit)
 end
 
 function CM.ResetAllyCycleCursor()
@@ -343,15 +421,8 @@ function CM.IsAllyCycleEnabled()
   return (GetBindingKey(BIND_UP) or GetBindingKey(BIND_DOWN)) and true or false
 end
 
-function CM.ApplyAllyCycleBindings()
-  if InCombatLockdown() then
-    if CM.TryApplyBindingChange then
-      CM.TryApplyBindingChange("ally cycle bindings", function()
-        CM.ApplyAllyCycleBindings()
-      end)
-    end
-    return
-  end
+local function ApplyAllyCycleBindingsImpl()
+  CycleButton:SetAttribute("skipPlayer", CM.IsAllyCycleSkipPlayer())
   ClearOverrideBindings(OverrideOwner)
   if not CM.IsAllyCycleEnabled() then
     CM.DebugPrint("Ally Cycle bindings cleared (unbound)")
@@ -375,6 +446,27 @@ function CM.ApplyAllyCycleBindings()
   if CM.RefreshAllyCycleHUD then
     CM.RefreshAllyCycleHUD()
   end
+end
+
+function CM.ApplyAllyCycleBindings()
+  if not SECURE_SNIPPETS_OK then
+    if not InCombatLockdown() then
+      ClearOverrideBindings(OverrideOwner)
+    end
+    if CM.RefreshAllyCycleHUD then
+      CM.RefreshAllyCycleHUD()
+    end
+    return
+  end
+  if InCombatLockdown() then
+    if CM.TryApplyBindingChange then
+      CM.TryApplyBindingChange("ally cycle bindings", function()
+        CM.ApplyAllyCycleBindings()
+      end)
+    end
+    return
+  end
+  return CM.Profile("AllyCycle:ApplyBindings", ApplyAllyCycleBindingsImpl)
 end
 
 CM.AllyCycleBindUp = BIND_UP

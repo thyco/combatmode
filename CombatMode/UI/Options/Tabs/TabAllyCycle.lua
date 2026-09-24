@@ -1,11 +1,13 @@
 ---------------------------------------------------------------------------------------
 --  UI/Options/Tabs/TabAllyCycle.lua — OPTIONS TAB — Ally Cycle + HUD
 ---------------------------------------------------------------------------------------
---  What it does: Up/Down keybinds, Keep Ally After Harm, and Ally HUD show/side/scale.
---  Unbound keys disable.
+--  What it does: Up/Down keybinds, Skip Self, Keep Ally After Harm, and Ally HUD
+--  show/side/scale/distance. Unbound keys disable.
 --  Architecture / how it works:
 --    • DB.global.allyCycle; onSelect/onDeselect → SetAllyCycleOptionsPreview.
+--    • Skip Self → skipPlayer + ApplyAllyCycleBindings (secure attribute).
 --    • Keep Ally After Harm → SetAllyCycleRestoreAfterHarm + RefreshClickCastMacros.
+--    • Forever (not IsAllyCycleSecureAvailable): ctx:WatermarkPage over the tab.
 --  Does not: Own secure roster or build click-cast macrotext.
 --  Related: Core/AllyCycle/{Cycle,HUD,AllyCycle}.lua, Constants/DatabaseDefaults.lua,
 --  Core/ClickCasting/TargetingMacroBuilder.lua, UI/Options/OptionsPanel.lua
@@ -39,8 +41,10 @@ local function AllyCycleDb()
   if not CM.DB.global.allyCycle then
     CM.DB.global.allyCycle = {
       showHud = true,
-      hudSide = "TOP",
+      hudSide = "BOTTOM",
       scale = 1.0,
+      padding = 24,
+      skipPlayer = true,
       restoreAllyAfterHarm = false,
       restoreAllyAfterHarmSet = false,
     }
@@ -107,6 +111,19 @@ UI.Options.AddTab({
       end,
     })
     ctx:Toggle({
+      label = "Skip Self",
+      desc = "Skip yourself when cycling through group members.",
+      get = function()
+        return CM.IsAllyCycleSkipPlayer and CM.IsAllyCycleSkipPlayer()
+      end,
+      set = function(value)
+        AllyCycleDb().skipPlayer = value and true or false
+        if CM.ApplyAllyCycleBindings then
+          CM.ApplyAllyCycleBindings()
+        end
+      end,
+    })
+    ctx:Toggle({
       label = "Keep Ally After Harm",
       desc = "After a harmful spell targets the reticle enemy, restore the previous ally. On by default for Healer specs until changed.",
       get = function()
@@ -135,8 +152,8 @@ UI.Options.AddTab({
     ctx:Header({ text = "ALLY HUD", newFeatureFlag = true })
 
     ctx:Toggle({
-      label = "Show Ally HUD",
-      desc = "Show name, role, health, cycle index, and raid marker for the selected group member beside the crosshair.",
+      label = "Ally HUD",
+      desc = "Show a unit frame for the currently selected group member.",
       get = function()
         return AllyCycleDb().showHud ~= false
       end,
@@ -146,12 +163,12 @@ UI.Options.AddTab({
       end,
     })
     ctx:Dropdown({
-      label = "HUD Position",
+      label = "Position",
       desc = "Where the Ally HUD sits relative to the crosshair.",
       values = HUD_SIDE_VALUES,
       order = HUD_SIDE_ORDER,
       get = function()
-        return AllyCycleDb().hudSide or "TOP"
+        return AllyCycleDb().hudSide or "BOTTOM"
       end,
       set = function(value)
         AllyCycleDb().hudSide = value
@@ -159,11 +176,12 @@ UI.Options.AddTab({
       end,
     })
     ctx:Slider({
-      label = "HUD Scale",
+      label = "Scale",
       desc = "Scales the size of the Ally HUD.",
       min = 0.5,
       max = 1.5,
       step = 0.05,
+      default = 1,
       get = function()
         return AllyCycleDb().scale or 1
       end,
@@ -172,5 +190,28 @@ UI.Options.AddTab({
         ApplyHud()
       end,
     })
+    ctx:Slider({
+      label = "Distance",
+      desc = "Distance between the Ally HUD and the crosshair.",
+      min = 0,
+      max = 128,
+      step = 1,
+      default = 24,
+      get = function()
+        local v = AllyCycleDb().padding
+        if v == nil then
+          v = 24
+        end
+        return v
+      end,
+      set = function(value)
+        AllyCycleDb().padding = value
+        ApplyHud()
+      end,
+    })
+
+    if CM.IsAllyCycleSecureAvailable and not CM.IsAllyCycleSecureAvailable() then
+      ctx:WatermarkPage("Unavailable on WoW Forever")
+    end
   end,
 })
